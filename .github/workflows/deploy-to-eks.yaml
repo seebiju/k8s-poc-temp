@@ -1,3 +1,4 @@
+#Version
 name: Deploy to Amazon EKS
 
 on:
