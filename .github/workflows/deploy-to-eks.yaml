@@ -9,8 +9,8 @@ on:
     branches: [main]
 
 env:
-  AWS_REGION: ap-south-1        # 🔁 Replace with your region
-  CLUSTER_NAME: my-eks-cluster  # 🔁 Replace with your cluster name
+  AWS_REGION: ap-southeast-1        # your region
+  CLUSTER_NAME: my-eks-cluster  # your cluster name
 
 jobs:
   deploy:
@@ -28,7 +28,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::<AWS_ACCOUNT_ID>:role/GitHubActionsEKSDeployRole  # 🔁 Replace this
+          role-to-assume: arn:aws:iam::653091863883:role/GitHubActionsEKSDeployRole  # 🔁 Replace this
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Install kubectl
