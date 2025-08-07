@@ -10,7 +10,7 @@ on:
 
 env:
   AWS_REGION: ap-southeast-1        # your region
-  CLUSTER_NAME: my-eks-cluster  # your cluster name
+  CLUSTER_NAME: k8s-poc  # your cluster name
 
 jobs:
   deploy:
