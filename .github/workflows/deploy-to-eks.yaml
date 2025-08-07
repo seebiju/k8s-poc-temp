@@ -1,0 +1,71 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Deploy to Amazon EKS
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: ap-south-1        # 🔁 Replace with your region
+  CLUSTER_NAME: my-eks-cluster  # 🔁 Replace with your cluster name
+
+jobs:
+  deploy:
+    name: Deploy Manifests to EKS
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::<AWS_ACCOUNT_ID>:role/GitHubActionsEKSDeployRole  # 🔁 Replace this
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: v1.30.1  # Use latest compatible version
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.14.2
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region $AWS_REGION \
+            --name $CLUSTER_NAME
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl get ns demo-app || kubectl create ns demo-app
+
+      - name: Deploy manifests
+        run: |
+          kubectl apply -f namespace.yaml
+          kubectl apply -f secret.yaml
+          kubectl apply -f configmap.yaml
+          kubectl apply -f efs-sc.yaml
+          kubectl apply -f efs-pv.yaml
+          kubectl apply -f pvc.yaml
+          kubectl apply -f deployment.yaml
+          kubectl apply -f service.yaml
+          kubectl apply -f ingress.yaml
+          kubectl apply -f hpa.yaml
+          kubectl apply -f busybox.yaml
+
+      - name: Verify pods
+        run: |
+          kubectl get pods -n demo-app
+
