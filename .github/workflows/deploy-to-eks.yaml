@@ -50,6 +50,13 @@ jobs:
             --name $CLUSTER_NAME \
             --kubeconfig $HOME/.kube/config
 
+      - name: ✅ Final check – real access
+        run: |
+          export KUBECONFIG=$HOME/.kube/config
+          echo "Testing actual access from role..."
+          kubectl auth can-i get pods
+
+
       - name: Debug Kube Access
         run: |
           export KUBECONFIG=$HOME/.kube/config
