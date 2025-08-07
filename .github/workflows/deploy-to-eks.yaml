@@ -1,4 +1,5 @@
-#Version 4.4
+# .github/workflows/deploy.yml
+
 name: Deploy to Amazon EKS
 
 on:
@@ -10,6 +11,7 @@ on:
 env:
   AWS_REGION: ap-southeast-1
   CLUSTER_NAME: k8-poc-final1
+  KUBECONFIG: ${{ github.workspace }}/.kube/config
 
 jobs:
   deploy:
@@ -21,70 +23,67 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::653091863883:role/GitHubActionsEKSDeployRole
-          aws-region: ${{ env.AWS_REGION }}
+    - name: Configure AWS credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::653091863883:role/GitHubActionsEKSDeployRole
+        aws-region: ${{ env.AWS_REGION }}
 
-      - name: Verify caller identity
-        run: aws sts get-caller-identity
+    - name: Verify AWS caller identity
+      run: aws sts get-caller-identity
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: v1.30.1
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: v1.30.1
 
-      - name: Install Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: v3.14.2
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: v3.14.2
 
-      - name: Update kubeconfig
-        run: |
-          aws eks update-kubeconfig \
-            --region $AWS_REGION \
-            --name $CLUSTER_NAME \
-            --kubeconfig $HOME/.kube/config
+    - name: Update kubeconfig
+      run: |
+        mkdir -p $(dirname "$KUBECONFIG")
+        aws eks update-kubeconfig \
+          --region $AWS_REGION \
+          --name $CLUSTER_NAME \
+          --kubeconfig $KUBECONFIG
 
-      - name: ✅ Final check – real access
-        run: |
-          export KUBECONFIG=$HOME/.kube/config
-          echo "Testing actual access from role..."
-          kubectl auth can-i get pods
+    - name: Wait for EKS API (retry logic)
+      run: |
+        for i in {1..5}; do
+          kubectl --kubeconfig $KUBECONFIG get nodes && break
+          echo "Waiting for EKS API... retrying in 10s"
+          sleep 10
+        done
 
+    - name: Access check
+      run: |
+        kubectl --kubeconfig $KUBECONFIG auth can-i get pods
+        kubectl --kubeconfig $KUBECONFIG get ns
 
-      - name: Debug Kube Access
-        run: |
-          export KUBECONFIG=$HOME/.kube/config
-          kubectl config current-context
-          kubectl version --client
-          kubectl get ns
+    - name: Create namespace if not exists
+      run: |
+        kubectl --kubeconfig $KUBECONFIG get ns demo-app || \
+        kubectl --kubeconfig $KUBECONFIG create ns demo-app
 
-      - name: Create namespace if not exists
-        run: |
-          export KUBECONFIG=$HOME/.kube/config
-          kubectl get ns demo-app || kubectl create ns demo-app
+    - name: Deploy manifests
+      run: |
+        kubectl --kubeconfig $KUBECONFIG apply -f namespace.yaml
+        kubectl --kubeconfig $KUBECONFIG apply -f secret.yaml
+        kubectl --kubeconfig $KUBECONFIG apply -f configmap.yaml
+        kubectl --kubeconfig $KUBECONFIG apply -f efs-sc.yaml
+        kubectl --kubeconfig $KUBECONFIG apply -f efs-pv.yaml
+        kubectl --kubeconfig $KUBECONFIG apply -f pvc.yaml
+        kubectl --kubeconfig $KUBECONFIG apply -f deployment.yaml
+        kubectl --kubeconfig $KUBECONFIG apply -f service.yaml
+        kubectl --kubeconfig $KUBECONFIG apply -f ingress.yaml
+        kubectl --kubeconfig $KUBECONFIG apply -f hpa.yaml
+        kubectl --kubeconfig $KUBECONFIG apply -f busybox.yaml
 
-      - name: Deploy manifests
-        run: |
-          export KUBECONFIG=$HOME/.kube/config
-          kubectl apply -f namespace.yaml
-          kubectl apply -f secret.yaml
-          kubectl apply -f configmap.yaml
-          kubectl apply -f efs-sc.yaml
-          kubectl apply -f efs-pv.yaml
-          kubectl apply -f pvc.yaml
-          kubectl apply -f deployment.yaml
-          kubectl apply -f service.yaml
-          kubectl apply -f ingress.yaml
-          kubectl apply -f hpa.yaml
-          kubectl apply -f busybox.yaml
-
-      - name: Verify pods
-        run: |
-          export KUBECONFIG=$HOME/.kube/config
-          kubectl get pods -n demo-app
+    - name: Verify pods
+      run: kubectl --kubeconfig $KUBECONFIG get pods -n demo-app
