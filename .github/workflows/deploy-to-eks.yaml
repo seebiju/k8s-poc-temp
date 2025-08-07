@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 #version1
-#version2
+#version4
 
 name: Deploy to Amazon EKS
 
