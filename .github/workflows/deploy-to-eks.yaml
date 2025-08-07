@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 env:
-  AWS_REGION: ap-southeast-1        # your region
-  CLUSTER_NAME: k8s-poc             # your EKS cluster name
+  AWS_REGION: ap-southeast-1
+  CLUSTER_NAME: k8s-poc
 
 jobs:
   deploy:
@@ -50,7 +50,7 @@ jobs:
         run: |
           export KUBECONFIG=$HOME/.kube/config
           kubectl config current-context
-          kubectl version --short
+          kubectl version --client
           kubectl get ns
 
       - name: Create namespace if not exists
