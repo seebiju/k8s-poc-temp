@@ -9,7 +9,7 @@ on:
 
 env:
   AWS_REGION: ap-southeast-1
-  CLUSTER_NAME: k8s-poc-clean
+  CLUSTER_NAME: k8-poc-final1
 
 jobs:
   deploy:
